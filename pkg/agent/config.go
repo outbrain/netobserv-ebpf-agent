@@ -146,6 +146,13 @@ type Config struct {
 	EnablePktDrops bool `env:"ENABLE_PKT_DROPS" envDefault:"false"`
 	// EnableDNSTracking enable DNS tracking eBPF hook to track dns query/response flows
 	EnableDNSTracking bool `env:"ENABLE_DNS_TRACKING" envDefault:"false"`
+	// EnablePCA enables Packet Capture Agent (PCA). By default PCA is off.
+	EnablePCA bool `env:"ENABLE_PCA" envDefault:"false"`
+	// PCAFilters set the filters to determine packets to filter using Packet Capture Agent (PCA). It is a comma separated set.
+	// The format is [protocol], [port number] Example: PCA_FILTER = "tcp,80". Currently, we support 'tcp','udp','sctp' for protocol.
+	PCAFilters string `env:"PCA_FILTER"`
+	// PCAServerPort is the port PCA Server starts at, when ENABLE_PCA variable is set to true.
+	PCAServerPort int `env:"PCA_SERVER_PORT" envDefault:"9990"`
 	// StaleEntriesEvictTimeout specifies the maximum duration that stale entries are kept
 	// before being deleted, default is 5 seconds.
 	StaleEntriesEvictTimeout time.Duration `env:"STALE_ENTRIES_EVICT_TIMEOUT" envDefault:"5s"`
