@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/cilium/ebpf/perf"
 	"sync/atomic"
 	"syscall"
 	"time"
@@ -29,7 +30,7 @@ type RingBufTracer struct {
 }
 
 type ringBufReader interface {
-	ReadRingBuf() (ringbuf.Record, error)
+	ReadPerf() (perf.Record, error)
 }
 
 // stats supports atomic logging of ringBuffer metrics
@@ -76,15 +77,15 @@ func (m *RingBufTracer) TraceLoop(ctx context.Context) node.StartFunc[*RawRecord
 }
 
 func (m *RingBufTracer) listenAndForwardRingBuffer(debugging bool, forwardCh chan<- *RawRecord) error {
-	event, err := m.ringBuffer.ReadRingBuf()
+	event, err := m.ringBuffer.ReadPerf()
 	if err != nil {
-		m.metrics.Errors.WithErrorName("ringbuffer", "CannotReadRingbuffer").Inc()
-		return fmt.Errorf("reading from ring buffer: %w", err)
+		m.metrics.Errors.WithErrorName("perfarray", "CannotReadPerfbuffer").Inc()
+		return fmt.Errorf("reading from perfbuffer: %w", err)
 	}
 	// Parses the ringbuf event entry into an Event structure.
 	readFlow, err := ReadFrom(bytes.NewBuffer(event.RawSample))
 	if err != nil {
-		m.metrics.Errors.WithErrorName("ringbuffer", "CannotParseRingbuffer").Inc()
+		m.metrics.Errors.WithErrorName("perfbuffer", "CannotParsePerfbuffer").Inc()
 		return fmt.Errorf("parsing data received from the ring buffer: %w", err)
 	}
 	mapFullError := readFlow.Metrics.Errno == uint8(syscall.E2BIG)
@@ -99,7 +100,7 @@ func (m *RingBufTracer) listenAndForwardRingBuffer(debugging bool, forwardCh cha
 		reason = "mapfull"
 	}
 	// In ringbuffer, a "flow" is a 1-packet flow, it hasn't gone through aggregation yet. So we use the packet counter metric.
-	m.metrics.EvictedPacketsCounter.WithSourceAndReason("ringbuffer", reason).Inc()
+	m.metrics.EvictedPacketsCounter.WithSourceAndReason("perfbuffer", reason).Inc()
 	// Will need to send it to accounter anyway to account regardless of complete/ongoing flow
 	forwardCh <- readFlow
 	return nil

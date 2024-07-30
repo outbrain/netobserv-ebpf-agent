@@ -3,6 +3,7 @@ package test
 import (
 	"bytes"
 	"encoding/binary"
+	"github.com/cilium/ebpf/perf"
 	"time"
 
 	"github.com/netobserv/netobserv-ebpf-agent/pkg/ebpf"
@@ -18,6 +19,7 @@ type TracerFake struct {
 	interfaces map[ifaces.Interface]struct{}
 	mapLookups chan map[ebpf.BpfFlowId][]ebpf.BpfFlowMetrics
 	ringBuf    chan ringbuf.Record
+	perf       chan perf.Record
 }
 
 func NewTracerFake() *TracerFake {
@@ -25,6 +27,7 @@ func NewTracerFake() *TracerFake {
 		interfaces: map[ifaces.Interface]struct{}{},
 		mapLookups: make(chan map[ebpf.BpfFlowId][]ebpf.BpfFlowMetrics, 100),
 		ringBuf:    make(chan ringbuf.Record, 100),
+		perf:       make(chan perf.Record, 100),
 	}
 }
 
@@ -52,8 +55,8 @@ func (m *TracerFake) LookupAndDeleteMap(_ *metrics.Metrics) map[ebpf.BpfFlowId][
 func (m *TracerFake) DeleteMapsStaleEntries(_ time.Duration) {
 }
 
-func (m *TracerFake) ReadRingBuf() (ringbuf.Record, error) {
-	return <-m.ringBuf, nil
+func (m *TracerFake) ReadPerf() (perf.Record, error) {
+	return <-m.perf, nil
 }
 
 func (m *TracerFake) AppendLookupResults(results map[ebpf.BpfFlowId][]ebpf.BpfFlowMetrics) {

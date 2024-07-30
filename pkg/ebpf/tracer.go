@@ -18,7 +18,6 @@ import (
 	"github.com/cilium/ebpf/btf"
 	"github.com/cilium/ebpf/link"
 	"github.com/cilium/ebpf/perf"
-	"github.com/cilium/ebpf/ringbuf"
 	"github.com/cilium/ebpf/rlimit"
 	"github.com/gavv/monotime"
 	"github.com/sirupsen/logrus"
@@ -63,7 +62,7 @@ type FlowFetcher struct {
 	qdiscs                   map[ifaces.Interface]*netlink.GenericQdisc
 	egressFilters            map[ifaces.Interface]*netlink.BpfFilter
 	ingressFilters           map[ifaces.Interface]*netlink.BpfFilter
-	ringbufReader            *ringbuf.Reader
+	perfReader               *perf.Reader
 	cacheMaxSize             int
 	enableIngress            bool
 	enableEgress             bool
@@ -88,6 +87,7 @@ type FlowFetcherConfig struct {
 	FlowFilterConfig *FlowFilterConfig
 }
 
+// nolint:cyclop
 func NewFlowFetcher(cfg *FlowFetcherConfig) (*FlowFetcher, error) {
 	if err := rlimit.RemoveMemlock(); err != nil {
 		log.WithError(err).
@@ -192,15 +192,15 @@ func NewFlowFetcher(cfg *FlowFetcherConfig) (*FlowFetcher, error) {
 		}
 	}
 next:
-	// read events from igress+egress ringbuffer
-	flows, err := ringbuf.NewReader(objects.DirectFlows)
+	// read events from igress+egress perfarray
+	flows, err := perf.NewReader(objects.DirectFlows, os.Getpagesize())
 	if err != nil {
-		return nil, fmt.Errorf("accessing to ringbuffer: %w", err)
+		return nil, fmt.Errorf("accessing to perf: %w", err)
 	}
 
 	return &FlowFetcher{
 		objects:                  &objects,
-		ringbufReader:            flows,
+		perfReader:               flows,
 		egressFilters:            map[ifaces.Interface]*netlink.BpfFilter{},
 		ingressFilters:           map[ifaces.Interface]*netlink.BpfFilter{},
 		qdiscs:                   map[ifaces.Interface]*netlink.GenericQdisc{},
@@ -491,11 +491,8 @@ func (m *FlowFetcher) Close() error {
 			errs = append(errs, err)
 		}
 	}
-	// m.ringbufReader.Read is a blocking operation, so we need to close the ring buffer
-	// from another goroutine to avoid the system not being able to exit if there
-	// isn't traffic in a given interface
-	if m.ringbufReader != nil {
-		if err := m.ringbufReader.Close(); err != nil {
+	if m.perfReader != nil {
+		if err := m.perfReader.Close(); err != nil {
 			errs = append(errs, err)
 		}
 	}
@@ -601,8 +598,8 @@ func doIgnoreNoDev[T any](sysCall func(T) error, dev T, log *logrus.Entry) error
 	return nil
 }
 
-func (m *FlowFetcher) ReadRingBuf() (ringbuf.Record, error) {
-	return m.ringbufReader.Read()
+func (m *FlowFetcher) ReadPerf() (perf.Record, error) {
+	return m.perfReader.Read()
 }
 
 // LookupAndDeleteMap reads all the entries from the eBPF map and removes them from it.

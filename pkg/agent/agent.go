@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/cilium/ebpf/perf"
 	"io"
 	"net"
 	"net/http"
@@ -17,7 +18,6 @@ import (
 	"github.com/netobserv/netobserv-ebpf-agent/pkg/metrics"
 	promo "github.com/netobserv/netobserv-ebpf-agent/pkg/prometheus"
 
-	"github.com/cilium/ebpf/ringbuf"
 	"github.com/gavv/monotime"
 	kafkago "github.com/segmentio/kafka-go"
 	"github.com/segmentio/kafka-go/compress"
@@ -129,7 +129,7 @@ type ebpfFlowFetcher interface {
 
 	LookupAndDeleteMap(*metrics.Metrics) map[ebpf.BpfFlowId][]ebpf.BpfFlowMetrics
 	DeleteMapsStaleEntries(timeOut time.Duration)
-	ReadRingBuf() (ringbuf.Record, error)
+	ReadPerf() (perf.Record, error)
 }
 
 // FlowsAgent instantiates a new agent, given a configuration.
