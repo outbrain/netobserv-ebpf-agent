@@ -3,10 +3,12 @@
 
 #include <vmlinux.h>
 
-// Common Ringbuffer as a conduit for ingress/egress flows to userspace
+// Common PerfEvent Array as a conduit for ingress/egress flows to userspace
 struct {
-    __uint(type, BPF_MAP_TYPE_RINGBUF);
-    __uint(max_entries, 1 << 24);
+    __uint(type, BPF_MAP_TYPE_PERF_EVENT_ARRAY);
+    __type(key, u32);
+    __type(value, u32);
+    __uint(max_entries, 1 << 20);
 } direct_flows SEC(".maps");
 
 // Key: the flow identifier. Value: the flow metrics for that identifier.

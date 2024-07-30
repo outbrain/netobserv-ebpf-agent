@@ -152,17 +152,17 @@ static inline int flow_monitor(struct __sk_buff *skb, u8 direction) {
             }
 
             new_flow.errno = -ret;
-            flow_record *record =
-                (flow_record *)bpf_ringbuf_reserve(&direct_flows, sizeof(flow_record), 0);
-            if (!record) {
+            flow_record record;
+            record.id = id;
+            record.metrics = new_flow;
+            ret = bpf_perf_event_output(skb, &direct_flows, BPF_F_CURRENT_CPU, &record,
+                                        sizeof(record));
+            if (ret) {
                 if (trace_messages) {
-                    bpf_printk("couldn't reserve space in the ringbuf. Dropping flow");
+                    bpf_printk("failed to send flow via perf event: %d\n", ret);
                 }
                 return TC_ACT_OK;
             }
-            record->id = id;
-            record->metrics = new_flow;
-            bpf_ringbuf_submit(record, 0);
         }
     }
     return TC_ACT_OK;
